@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   panhub:
-    build: .
+    image: ghcr.io/wu529778790/panhub.shenzjd.com:latest
+    # 仅本地构建时取消下面一行注释；服务器部署直接用上面的 image 拉取即可
+    # build: .
     container_name: panhub
     restart: unless-stopped
     ports:
@@ -10,18 +12,43 @@ services:
     volumes:
       # 持久化热搜 JSON 数据
       - ./data:/app/data
-      # 如果需要持久化日志（可选）
-      # - ./logs:/app/logs
     environment:
       - NODE_ENV=production
       - PORT=4000
       - HOST=0.0.0.0
-      # 可选：设置日志级别
       - LOG_LEVEL=info
-    # 健康检查
+      # 搜索密码门（可选，非空时启用）
+      - SEARCH_PASSWORD=${SEARCH_PASSWORD:-}
+      # 搜索审计 - MongoDB（配置后启用写入；需配合 --profile audit 启动 mongo 服务）
+      - SEARCH_AUDIT_MONGO_URL=${SEARCH_AUDIT_MONGO_URL:-}
+      - SEARCH_AUDIT_MONGO_DB=${SEARCH_AUDIT_MONGO_DB:-}
+      - SEARCH_AUDIT_MONGO_COLLECTION=${SEARCH_AUDIT_MONGO_COLLECTION:-search_audit_logs}
+      - SEARCH_AUDIT_RETENTION_DAYS=${SEARCH_AUDIT_RETENTION_DAYS:-360}
+      - SEARCH_AUDIT_WRITE_TIMEOUT_MS=${SEARCH_AUDIT_WRITE_TIMEOUT_MS:-1000}
+      # 审计管理后台访问令牌（配置后启用 /audit 页面与 /api/audit/** 查询）
+      - SEARCH_AUDIT_ADMIN_TOKEN=${SEARCH_AUDIT_ADMIN_TOKEN:-}
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # MongoDB 审计存储（仅启用审计时启动：docker compose --profile audit up -d）
+  mongo:
+    image: mongo:7
+    container_name: panhub-mongo
+    restart: unless-stopped
+    profiles: [audit]
+    volumes:
+      - mongo-data:/data/db
+    # 默认不暴露端口到主机（仅容器间通信）；本地调试可取消下面两行注释
+    # ports:
+    #   - "27017:27017"
+    # 如需启用 MongoDB 认证，取消注释并配置下方环境变量，同时在 .env 的 URL 里带账号密码
+    # environment:
+    #   - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER:-}
+    #   - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASS:-}
+
+volumes:
+  mongo-data:

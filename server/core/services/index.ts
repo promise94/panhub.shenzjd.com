@@ -1,5 +1,16 @@
 import { SearchService, type SearchServiceOptions } from "./searchService";
+import {
+  SearchAuditService,
+  DEFAULT_SEARCH_AUDIT_RETENTION_DAYS,
+} from "./searchAuditService";
+import {
+  createMongoSearchAuditStore,
+  DEFAULT_SEARCH_AUDIT_COLLECTION,
+  DEFAULT_SEARCH_AUDIT_WRITE_TIMEOUT_MS,
+  resetMongoSearchAuditRuntime,
+} from "./mongoSearchAuditStore";
 import { PluginManager, registerGlobalPlugin } from "../plugins/manager";
+import { loggers } from "../utils/logger";
 // NOTE: 8 dead plugins removed on 2026-07-06 based on log analysis:
 //   hunhepan   - 3 APIs all dead (504/414/404)
 //   jikepan    - source down (CF 522)
@@ -82,3 +93,71 @@ export function getSearchServiceStats(): { exists: boolean; options?: SearchServ
     options: context.options,
   };
 }
+
+const SEARCH_AUDIT_SERVICE_CONTEXT_KEY = "__panhub_search_audit_service__";
+
+function hasSearchAuditMongoConfig(runtimeConfig: any): boolean {
+  return Boolean(
+    runtimeConfig?.searchAuditMongoUrl && runtimeConfig?.searchAuditMongoDb
+  );
+}
+
+function normalizeSearchAuditRetentionDays(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
+    return DEFAULT_SEARCH_AUDIT_RETENTION_DAYS;
+  }
+  return value;
+}
+
+function normalizeSearchAuditWriteTimeoutMs(value: unknown): number {
+  return typeof value === "number" &&
+    Number.isFinite(value) &&
+    Number.isInteger(value) &&
+    value > 0
+    ? value
+    : DEFAULT_SEARCH_AUDIT_WRITE_TIMEOUT_MS;
+}
+
+function createSearchAuditService(runtimeConfig: any): SearchAuditService | null {
+  if (!hasSearchAuditMongoConfig(runtimeConfig)) {
+    loggers.api.warn("Search audit service disabled: missing MongoDB runtime configuration.");
+    return null;
+  }
+
+  const store = createMongoSearchAuditStore({
+    mongoUrl: runtimeConfig.searchAuditMongoUrl,
+    dbName: runtimeConfig.searchAuditMongoDb,
+    collectionName:
+      runtimeConfig.searchAuditMongoCollection || DEFAULT_SEARCH_AUDIT_COLLECTION,
+    writeTimeoutMs: normalizeSearchAuditWriteTimeoutMs(
+      runtimeConfig.searchAuditWriteTimeoutMs
+    ),
+  });
+
+  return new SearchAuditService({
+    store,
+    retentionDays: normalizeSearchAuditRetentionDays(
+      runtimeConfig.searchAuditRetentionDays
+    ),
+  });
+}
+
+export function getOrCreateSearchAuditService(
+  runtimeConfig: any
+): SearchAuditService | null {
+  const context = (globalThis as any)[SEARCH_AUDIT_SERVICE_CONTEXT_KEY];
+  if (context && "service" in context) {
+    return context.service;
+  }
+
+  const service = createSearchAuditService(runtimeConfig);
+  (globalThis as any)[SEARCH_AUDIT_SERVICE_CONTEXT_KEY] = { service };
+  return service;
+}
+
+export function resetSearchAuditRuntime(): void {
+  delete (globalThis as any)[SEARCH_AUDIT_SERVICE_CONTEXT_KEY];
+  resetMongoSearchAuditRuntime();
+}
+
+export { createMongoSearchAuditStore };

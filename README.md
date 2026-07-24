@@ -136,6 +136,22 @@ npm build
 | `NITRO_PRESET` | auto-detect | 部署预设（vercel/cloudflare/docker） |
 | `PORT` | `4000` | 服务端口 |
 | `SEARCH_PASSWORD` | 空 | 非空时启用密码门，搜索时需输入密码（5 次失败锁定 5 分钟） |
+| `SEARCH_AUDIT_MONGO_URL` | 空 | Node / Docker 场景的 MongoDB 搜索审计连接串；未配置时功能不启用 |
+| `SEARCH_AUDIT_MONGO_DB` | 空 | MongoDB 搜索审计数据库名；未配置时功能不启用 |
+| `SEARCH_AUDIT_MONGO_COLLECTION` | `search_audit_logs` | MongoDB 搜索审计集合名 |
+| `SEARCH_AUDIT_RETENTION_DAYS` | `360` | 搜索审计保留天数，仅影响新写入记录 |
+| `SEARCH_AUDIT_WRITE_TIMEOUT_MS` | `1000` | 搜索审计写入超时（毫秒） |
+| `SEARCH_AUDIT_ADMIN_TOKEN` | 空 | 搜索审计管理后台访问令牌；非空时启用 `/audit` 页面与 `/api/audit/**` 查询接口 |
+
+> MongoDB 搜索审计仅用于 Node / Docker 部署场景；需配置 `SEARCH_AUDIT_MONGO_URL` 与 `SEARCH_AUDIT_MONGO_DB` 才会启用。若 Mongo 配置缺失，则该功能保持关闭，不会使用内存 fallback。
+
+### 搜索审计与隐私说明
+
+配置 `SEARCH_AUDIT_MONGO_URL` 与 `SEARCH_AUDIT_MONGO_DB` 后，服务端会把每次 `/api/search` 请求写入 MongoDB 审计集合，用于安全审查、运维分析和后续限流能力。审计记录包含搜索关键词、来源 IP、请求方法、路径、User-Agent、请求 ID、成功状态、状态码、耗时、结果数量和筛选条件，不保存 `ext` 扩展 payload。
+
+默认保留周期为 360 天，可通过 `SEARCH_AUDIT_RETENTION_DAYS` 调整；保留周期按写入时计算，只影响新记录。未配置 MongoDB 审计环境变量时不会启用该功能，也不会使用内存审计 fallback。
+
+配置 `SEARCH_AUDIT_ADMIN_TOKEN` 后，可通过 `/audit` 页面（需 token 登录）查看审计记录，支持按 IP、关键词、时间范围、状态码筛选与分页，并提供成功率、状态码分布、近 7 天趋势等统计。该接口仅限内部运维使用，不对外公开。
 
 ### 部署差异说明
 

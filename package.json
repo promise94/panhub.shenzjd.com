@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "cheerio": "^1.0.0",
+    "mongodb": "^6.17.0",
     "nuxt": "^4.0.3",
     "ofetch": "^1.4.1",
     "p-limit": "^7.2.0",

@@ -12,4 +12,7 @@ docs
 test
 *.test.ts
 *.test.mjs
+.claude
+.workbuddy
+data
 

@@ -5,8 +5,8 @@ WORKDIR /app
 # 先复制依赖文件，利用层缓存
 COPY package.json package-lock.json ./
 
-# 安装依赖
-RUN npm ci
+# 安装依赖（用 install 而非 ci，允许 package.json 新增 mongodb 后更新 lock）
+RUN npm install
 
 # 复制源码并构建
 COPY . .

@@ -56,6 +56,7 @@ export default defineNuxtConfig({
     "/api/auth/**": { swr: false, cache: false },
     // 搜索接口依赖 Cookie 鉴权，禁止缓存避免 401 被缓存
     "/api/search": { swr: false, cache: false },
+    "/api/audit/**": { swr: false, cache: false },
     // 图片代理依赖豆瓣，禁止 SWR 缓存避免错误响应被缓存
     "/api/img": { swr: false, cache: false },
     "/**": { swr: 3600 },
@@ -69,6 +70,12 @@ export default defineNuxtConfig({
     pluginTimeoutMs: channelsConfig.pluginTimeoutMs,
     cacheEnabled: true,
     cacheTtlMinutes: channelsConfig.cacheTtlMinutes,
+    searchAuditMongoUrl: process.env.SEARCH_AUDIT_MONGO_URL || "",
+    searchAuditMongoDb: process.env.SEARCH_AUDIT_MONGO_DB || "",
+    searchAuditMongoCollection: process.env.SEARCH_AUDIT_MONGO_COLLECTION || "search_audit_logs",
+    searchAuditRetentionDays: Number(process.env.SEARCH_AUDIT_RETENTION_DAYS || 360),
+    searchAuditWriteTimeoutMs: Number(process.env.SEARCH_AUDIT_WRITE_TIMEOUT_MS || 1000),
+    searchAuditAdminToken: process.env.SEARCH_AUDIT_ADMIN_TOKEN || "",
     public: {
       apiBase: "/api",
       siteUrl: "https://panhub.shenzjd.com",
